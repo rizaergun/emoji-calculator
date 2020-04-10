@@ -6,26 +6,14 @@ class EmojiCalculator
 
     public $emojiList;
 
+    public $index;
+
+    public $text;
+
     public function __construct()
     {
         $this->unicodeList = $this->getUnicodeList();
         $this->emojiList = $this->getEmojiList();
-    }
-
-    public function calculate($text)
-    {
-        $result = "🤷";
-
-        $text = $this->removeEmpty($text);
-        $text = $this->convertAsciiToUnicode($text);
-        $text = $this->convertUnicodeToAsciiWithEmoji($text);
-
-        if ($this->lastCheckBeforeCalculate($text)) {
-            $text = eval('return ' . $text . ';');
-            return $this->convertAsciiToEmoji($text);
-        }
-
-        return $result;
     }
 
     public function removeEmpty($text)
@@ -85,19 +73,6 @@ class EmojiCalculator
         return $text;
     }
 
-    public function convertAsciiToEmoji($text)
-    {
-        if (is_numeric($text)) {
-            foreach ($this->emojiList as $key => $value) {
-                $text = str_replace($value, $key, $text);
-            }
-
-            return $text;
-        } else {
-            return "🤷";
-        }
-    }
-
     public function lastCheckBeforeCalculate($text)
     {
         $searchList = ['*', '+', '-', '/'];
@@ -108,6 +83,19 @@ class EmojiCalculator
             return true;
         } else {
             return false;
+        }
+    }
+
+    public function convertAsciiToEmoji($text)
+    {
+        if (is_numeric($text)) {
+            foreach ($this->emojiList as $key => $value) {
+                $text = str_replace($value, $key, $text);
+            }
+
+            return $text;
+        } else {
+            return "🤷";
         }
     }
 
@@ -212,4 +200,82 @@ class EmojiCalculator
             '9️' => "9",
         ];
     }
+
+    // Expression Parser Start
+
+    public function getNumber()
+    {
+        $index = $this->index;
+
+        while (isset($this->text[$this->index]) && is_numeric($this->text[$this->index])) {
+            $this->index++;
+        }
+
+        $len = $this->index - $index;
+
+        $str = substr($this->text, $index, $len);
+
+        return (float)$str;
+    }
+
+    public function calculateParentOperators()
+    {
+        $value = $this->getNumber();
+
+        while (in_array($char = $this->text[$this->index] ?? false, ['*', '/'])) {
+            $this->index++;
+            $term = $this->getNumber();
+
+            switch ($char) {
+                case '*':
+                    $value = $value * $term;
+                    break;
+                case '/':
+                    $value = $value / $term;
+                    break;
+            }
+        }
+
+        return $value;
+    }
+
+    public function calculate($text)
+    {
+        $this->index = 0;
+        $this->text = $text;
+
+        $value = $this->calculateParentOperators();
+
+        while (in_array($char = $this->text[$this->index] ?? false, ['+', '-'])) {
+            $this->index++;
+
+            $parent_value = $this->calculateParentOperators();
+
+            if ($char == '-') {
+                $parent_value = -$parent_value;
+            }
+
+            $value += $parent_value;
+        }
+
+        return $value;
+    }
+
+    // Expression Parser End
+
+    public function execute($text)
+    {
+        $result = "🤷";
+
+        $text = $this->removeEmpty($text);
+        $text = $this->convertAsciiToUnicode($text);
+        $text = $this->convertUnicodeToAsciiWithEmoji($text);
+
+        if (!$this->lastCheckBeforeCalculate($text)) return $result;
+
+        $text = $this->calculate($text);
+
+        return $this->convertAsciiToEmoji($text);
+    }
+
 }

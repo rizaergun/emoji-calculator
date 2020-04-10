@@ -15,6 +15,8 @@ function println($text)
 
 $text = trim($argv[1]);
 
-$ec = new EmojiCalculator();
-//println($ec->convertAsciiToUnicode($text));
-println($ec->calculate($text));
+$emojiCalculator = new EmojiCalculator();
+
+$text = $emojiCalculator->execute($text);
+
+println($text);
